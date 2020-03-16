@@ -22,10 +22,12 @@ MainWindow::init(char **argv)
     screen_size_ = qApp->screens()[0]->size();
     program_path_ = GetProgramPath(argv);
 
-    file_loader = new(FileLoader);
-    file_loader->LoadConfig(program_path_); // return error if config read fails
+    file_loader_ = new(FileLoader);
+    file_loader_->LoadConfig(program_path_); // return error if config read fails
     PopulateDeviceList();
     ResizeMainWindow();
+    ConnectSignals();
+    sender_ = new(Sender);
 }
 
 
@@ -44,21 +46,21 @@ MainWindow::GetProgramPath(char **argv)
 void
 MainWindow::PopulateDeviceList()
 {
-    table_model = new QStandardItemModel(this);
-    ui->tableView->setModel(table_model);
+    table_model_ = new QStandardItemModel(this);
+    ui->tableView->setModel(table_model_);
     QList<QStandardItem *> row;
 
-    table_model->setHorizontalHeaderItem(0, new QStandardItem("Device")); // text lookup
-    table_model->setHorizontalHeaderItem(1, new QStandardItem("OS"));
+    table_model_->setHorizontalHeaderItem(0, new QStandardItem("Device")); // text lookup
+    table_model_->setHorizontalHeaderItem(1, new QStandardItem("OS"));
 
     unsigned int device_id = 0;
 
-    while(file_loader->GetDeviceName(device_id) != nullptr)
+    while(file_loader_->GetDeviceName(device_id) != nullptr)
     {
         row.clear();
-        row << new QStandardItem(QString::fromStdString(*file_loader->GetDeviceName(device_id)));
-        row << new QStandardItem(QString("%1").arg(QString::fromStdString(*file_loader->GetDeviceOSType(device_id))));
-        table_model->appendRow(row);
+        row << new QStandardItem(QString::fromStdString(*file_loader_->GetDeviceName(device_id)));
+        row << new QStandardItem(QString("%1").arg(QString::fromStdString(*file_loader_->GetDeviceOSType(device_id))));
+        table_model_->appendRow(row);
         device_id++;
     }
 }
@@ -68,39 +70,82 @@ void
 MainWindow::ResizeMainWindow()
 {
     // offset x, offset y, width, height
-    placement p;
-
-    int base_height = 50;
-    int base_width = 50;
-
     std::vector<int> add_heights;
-    int add_height = 0;
     std::vector<int> add_widths;
-    int add_width = 0;
+    int add_height, add_width;
 
-    add_heights.push_back(table_model->rowCount() * 60);
+    add_heights.push_back(60);
+    add_heights.push_back(table_model_->rowCount() * 60);
+
+    add_widths.push_back(60);
     add_widths.push_back(ui->tableView->horizontalHeader()->length());
 
-    for(auto height : add_heights)
-        p.height += height;
+    add_height = std::accumulate(add_heights.begin(), add_heights.end(), 0);
+    add_width = std::accumulate(add_widths.begin(), add_widths.end(), 0);
 
-    for(auto width : add_widths)
-        p.width += width;
+    this->setGeometry(screen_size_.rwidth() - screen_size_.rwidth() * 0.5 - add_width * 0.5,
+                      screen_size_.rheight() - screen_size_.rheight() * 0.5 - add_height * 0.5,
+                      add_width,
+                      add_height);
+}
 
-    QSize set_size = {};
+
+void
+MainWindow::ConnectSignals()
+{
+    QObject::connect(this->ui->pushButton_ok, &QPushButton::clicked,
+                     this, &MainWindow::OnPushButtonOkClick);
+    QObject::connect(this->ui->pushButton_cancel, &QPushButton::clicked,
+                     this, &MainWindow::OnPushButtonCancelClick);
+}
 
 
-    this->setGeometry(screen_size_.rwidth() - screen_size_.rwidth() * 0.5 - p.width * 0.5,
-                      screen_size_.rheight() - screen_size_.rheight() * 0.5 - p.height * 0.5,
-                      base_width + add_width,
-                      base_height + add_height);
-
-    QList<QObject*> children;
-    children = this->findChildren<QObject *>();
-
-    for(auto child : children)
+void
+MainWindow::OnPushButtonOkClick()
+{
+    if(ui->tableView->selectionModel()->hasSelection())
     {
-//        if(child->setGeometry())
-//        child->setObjectName("");
+        if(this->ui->verticalSlider->sliderPosition())
+        {
+            std::vector<unsigned int> row_indexes = GetSelectedRows();
+            std::vector<const std::string *> macs;
+
+            for(auto row : row_indexes)
+                macs.push_back(file_loader_->GetDeviceMAC(row));
+            sender_->SendWolSignals(macs);
+        }
+        else
+        {
+            // send shutdown signals
+        }
     }
+}
+
+
+void
+MainWindow::OnPushButtonCancelClick()
+{
+    qApp->exit();
+}
+
+
+std::vector<unsigned int>
+MainWindow::GetSelectedRows()
+{
+    QModelIndexList selection_rows = ui->tableView->selectionModel()->selectedRows();
+    std::vector<unsigned int> row_indexes;
+
+    for(auto row : selection_rows)
+        row_indexes.push_back(static_cast<unsigned int>(row.row()));
+
+    return row_indexes;
+}
+
+
+void
+MainWindow::DisplayErrorMsgBox()
+{
+    QMessageBox msgBox;
+    msgBox.setText("Unspecified error occured.");
+    msgBox.exec();
 }

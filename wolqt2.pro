@@ -19,12 +19,14 @@ SOURCES += \
     benchmark.cpp \
     file_loader.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    sender.cpp
 
 HEADERS += \
     benchmark.h \
     file_loader.h \
-    mainwindow.h
+    mainwindow.h \
+    sender.h
 
 FORMS += \
     mainwindow.ui
