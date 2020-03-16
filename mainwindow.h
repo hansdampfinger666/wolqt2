@@ -30,6 +30,13 @@ signals:
     void exit();
 
 private:
+    typedef struct{
+        int offset_x;
+        int offset_y;
+        int width;
+        int height;
+    } placement;
+
     Ui::MainWindow *ui;
     FileLoader *file_loader;
     QStandardItemModel *table_model;

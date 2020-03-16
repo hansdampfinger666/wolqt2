@@ -67,10 +67,11 @@ MainWindow::PopulateDeviceList()
 void
 MainWindow::ResizeMainWindow()
 {
-    // offset x, offset y, width, hight
+    // offset x, offset y, width, height
+    placement p;
 
-    int base_height = 0;
-    int base_width = 0;
+    int base_height = 50;
+    int base_width = 50;
 
     std::vector<int> add_heights;
     int add_height = 0;
@@ -81,13 +82,16 @@ MainWindow::ResizeMainWindow()
     add_widths.push_back(ui->tableView->horizontalHeader()->length());
 
     for(auto height : add_heights)
-        add_height += height;
+        p.height += height;
 
     for(auto width : add_widths)
-        add_width += width;
+        p.width += width;
 
-    this->setGeometry(screen_size_.rwidth() - screen_size_.rwidth() * 0.5 - add_width * 0.5,
-                      screen_size_.rheight() - screen_size_.rheight() * 0.5 - add_height * 0.5,
+    QSize set_size = {};
+
+
+    this->setGeometry(screen_size_.rwidth() - screen_size_.rwidth() * 0.5 - p.width * 0.5,
+                      screen_size_.rheight() - screen_size_.rheight() * 0.5 - p.height * 0.5,
                       base_width + add_width,
                       base_height + add_height);
 
@@ -96,6 +100,7 @@ MainWindow::ResizeMainWindow()
 
     for(auto child : children)
     {
-
+//        if(child->setGeometry())
+//        child->setObjectName("");
     }
 }
